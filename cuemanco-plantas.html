@@ -138,12 +138,33 @@
   svg.i{width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;display:block}
   svg.s{width:16px;height:16px}
   svg.xs{width:13px;height:13px}
+
+  /* supplier quote sheet (print → save as PDF) */
+  #printsheet{display:none}
+  @media print{
+    body{background:#fff;color:#000;padding:0}
+    .wrap,.fab,.tabbar,.overlay{display:none !important}
+    #printsheet{display:block !important}
+    .psheet{font-family:Georgia,'Times New Roman',serif;color:#111;padding:6px 4px}
+    .psheet h1{font-size:20px;margin:0 0 2px}
+    .pmeta{color:#555;font-size:12px;margin-bottom:12px}
+    .pline{width:100%;font-size:12px;border-collapse:collapse;margin-bottom:6px}
+    .pline td{padding:3px 0}
+    .pnote{font-size:12px;margin:10px 0;line-height:1.5}
+    table.ptable{width:100%;border-collapse:collapse;font-size:12px}
+    table.ptable th,table.ptable td{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top}
+    table.ptable th{background:#eee}
+    table.ptable td.fill{min-width:64px}
+    table.ptable tr{page-break-inside:avoid}
+    thead{display:table-header-group}
+  }
 </style>
 </head>
 <body>
 <div class="wrap"><div id="app"></div></div>
 <input id="filein" type="file" accept="image/*" capture="environment" multiple style="display:none">
 <input id="restorein" type="file" accept="application/json,.json" style="display:none">
+<div id="printsheet"></div>
 <script>
 /* ---------------- icons ---------------- */
 const P = {
@@ -159,7 +180,9 @@ const P = {
   circle:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', ccirc1:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', ccirc2:'M8.5 12.5l2.5 2.5 4.5-5',
   list:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', route:'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h6a3 3 0 0 0 0-6H10a3 3 0 0 1 0-6h6',
   award:'M12 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM8.2 13.5 7 22l5-3 5 3-1.2-8.5',
-  dl:'M12 3v12M7 10l5 5 5-5M4 21h16', ul:'M12 21V9M7 14l5-5 5 5M4 3h16'
+  dl:'M12 3v12M7 10l5 5 5-5M4 21h16', ul:'M12 21V9M7 14l5-5 5 5M4 3h16',
+  file:'M6 2h9l5 5v15H6zM15 2v5h5M9 13h6M9 17h6',
+  sort:'M4 6h13M4 12h9M4 18h5M17 14l3 3 3-3M20 17V6'
 };
 function ic(name, cls){ const p=P[name]; return `<svg class="i ${cls||''}" viewBox="0 0 24 24">${p.split('M').filter(Boolean).map(d=>`<path d="M${d}"/>`).join('')}</svg>`; }
 function icCheckCircle(cls){ return `<svg class="i ${cls||''}" viewBox="0 0 24 24"><path d="${P.ccirc1}"/><path d="${P.ccirc2}"/></svg>`; }
@@ -236,8 +259,8 @@ const DB = {
 };
 
 /* ---------------- state ---------------- */
-let S = { plants:[], view:"list", tab:"list", returnTo:"list", activeId:null,
-  filter:"all", query:"", editSpecs:false, specsDraft:null, addProp:false, propDraft:null,
+let S = { plants:[], view:"list", tab:"list", returnTo:"list", activeId:null, groupKey:null,
+  filter:"all", query:"", sort:"original", editSpecs:false, specsDraft:null, addProp:false, propDraft:null,
   showAdd:false, addDraft:null, hideGot:false };
 const app = document.getElementById("app");
 const getP = id => S.plants.find(p=>p.id===id);
@@ -264,6 +287,7 @@ function render(){
   let html="";
   if(S.view==="list") html=viewList();
   else if(S.view==="route") html=viewRoute();
+  else if(S.view==="group"){ const m=S.plants.filter(p=>p.name.trim().toLowerCase()===S.groupKey); if(m.length){ html=viewGroup(m); } else { S.view="list"; html=viewList(); } }
   else if(S.view==="detail"){ const p=getP(S.activeId); html = p?viewDetail(p):viewList(); }
   if(S.view!=="detail") html += fab()+tabbar();
   app.innerHTML = html;
@@ -287,11 +311,12 @@ function tabbar(){ return `<nav class="tabbar"><div class="inner">
 function viewList(){
   const {spent,pend,bought}=totals();
   const q=S.query.toLowerCase();
-  const items=S.plants.filter(p=>{
+  let items=S.plants.filter(p=>{
     if(S.filter!=="all" && p.status!==S.filter) return false;
     if(q) return (p.name+" "+p.scientific+" "+p.zone).toLowerCase().includes(q);
     return true;
   });
+  if(S.sort==="az") items=[...items].sort((a,b)=>a.name.localeCompare(b.name,"es",{sensitivity:"base"}));
   const tabs=[["all","Todo"],["pending","Por comprar"],["comparing","Comparando"],["bought","Comprado"]];
   return `<header class="head">
     <div class="eyebrow">${ic("leaf","s")}<span>Cuemanco · Casa Jacarandas</span></div>
@@ -300,16 +325,95 @@ function viewList(){
       <div class="stat dark"><div class="k">Gastado</div><div class="v">${money(spent)}</div><div class="s">${bought} de ${S.plants.length} compradas</div></div>
       <div class="stat light"><div class="k">Estimado pendiente</div><div class="v" style="color:var(--ochre)">${money(pend)}</div><div class="s">al mejor precio hallado</div></div>
     </div>
-    <div class="toolrow">
+    <div class="toolrow" style="flex-wrap:wrap;gap:12px 16px;align-items:center">
       <button class="tool" data-act="backup">${ic("dl","s")} Respaldar</button>
       <button class="tool" data-act="restore">${ic("ul","s")} Restaurar</button>
+      <button class="tool" data-act="pdf">${ic("file","s")} PDF proveedores</button>
+      <button class="tool" data-act="sort" style="margin-left:auto;${S.sort==="az"?"font-weight:600":"color:var(--sub)"}">${ic("sort","s")} ${S.sort==="az"?"A–Z activo":"Ordenar A–Z"}</button>
     </div>
     <div class="searchbox">${ic("search","s")}<input data-focus="search" data-inp="query" value="${esc(S.query)}" placeholder="Buscar planta o zona…"></div>
     <div class="tabs">${tabs.map(([k,l])=>`<button class="pill ${S.filter===k?"on":""}" data-act="filter" data-f="${k}">${l}</button>`).join("")}</div>
   </header>
   <div class="list">
-    ${items.length?items.map(card).join(""):`<div class="center" style="padding:60px 0;color:var(--faint)">${ic("leaf")}<p>Nada aquí todavía.</p></div>`}
+    ${listBody(items)}
   </div>`;
+}
+
+function listBody(items){
+  if(!items.length) return `<div class="center" style="padding:60px 0;color:var(--faint)">${ic("leaf")}<p>Nada aquí todavía.</p></div>`;
+  const gmap=new Map();
+  for(const p of items){ const k=p.name.trim().toLowerCase(); if(!gmap.has(k)) gmap.set(k,[]); gmap.get(k).push(p); }
+  let groups=[...gmap.entries()];
+  if(S.sort==="az") groups.sort((a,b)=>a[1][0].name.localeCompare(b[1][0].name,"es",{sensitivity:"base"}));
+  return groups.map(([k,ms])=> ms.length===1 ? card(ms[0]) : groupCard(k,ms)).join("");
+}
+
+function groupSummary(ms){
+  const totalQty=ms.reduce((s,m)=>s+(Number(m.qtyNeeded)||0),0);
+  const zones=[...new Set(ms.map(m=>(m.zone||"Sin zona").replace(/^Jardinera /,"")))];
+  const boughtN=ms.filter(m=>m.status==="bought").length;
+  const prices=ms.map(bestPrice).filter(x=>x!==null);
+  const best=prices.length?Math.min(...prices):null;
+  const unit=ms[0].unit;
+  return {totalQty,zones,boughtN,best,unit};
+}
+
+function groupCard(key,ms){
+  const p0=ms[0], {totalQty,zones,boughtN,best,unit}=groupSummary(ms);
+  const cover=ms.map(m=>m.photos[0]).find(Boolean);
+  const allBought=boughtN===ms.length;
+  const badgeStyle = allBought?"background:var(--forestSoft);color:var(--forest)":"background:#E7E9DE;color:var(--sub)";
+  const price = boughtN>0
+    ? `<span style="color:var(--forest)">${boughtN}/${ms.length} zonas compradas</span>`
+    : best!==null ? `<span style="color:var(--ochre)">Mejor precio: <b>${money(best)}</b></span>`
+    : `<span style="color:var(--faint)">Sin propuestas aún</span>`;
+  return `<button class="pcard" data-act="opengroup" data-key="${esc(key)}">
+    <div class="cover">${cover?`<img src="${cover}">`:ic("leaf")}</div>
+    <div class="body">
+      <div class="rowtop"><div style="min-width:0">
+        <div class="zone">${esc(zones.join(" · "))}</div>
+        <div class="name">${esc(p0.name)}</div>
+        ${p0.scientific?`<div class="sci">${esc(p0.scientific)}</div>`:""}
+      </div><span class="badge" style="${badgeStyle}">${ms.length} zonas</span></div>
+      <div class="meta"><span>Total: <b style="color:var(--ink)">${totalQty}</b> ${esc(unit)}</span></div>
+      <div class="price">${price}</div>
+    </div></button>`;
+}
+
+function viewGroup(ms){
+  const p0=ms[0], {totalQty,unit}=groupSummary(ms);
+  return `<header class="dhead">
+    <button data-act="backgroup">${ic("chev")}</button>
+    <div class="t">${esc(p0.name)}</div>
+    <span class="badge" style="background:var(--forestSoft);color:var(--forest)">${ms.length} zonas</span>
+  </header>
+  <div class="pad" style="padding-top:16px">
+    ${p0.scientific?`<div style="font-size:14px;font-style:italic;color:var(--faint)">${esc(p0.scientific)}</div>`:""}
+    <div class="muted" style="margin-top:6px">Total a comprar: <b style="color:var(--ink)">${totalQty}</b> ${esc(unit)} en ${ms.length} zonas</div>
+    <div class="section rgroup" style="margin-top:16px">
+      ${ms.map(instanceRow).join("")}
+    </div>
+    <button class="btn line" style="margin-top:12px" data-act="addlike">${ic("plus","s")} Agregar en otra zona</button>
+    <div style="height:40px"></div>
+  </div>`;
+}
+
+function instanceRow(m){
+  const st=STATUS[m.status], bp=bestPrice(m);
+  const diff=m.specs.container||m.specs.size||m.specs.notes||"";
+  const right = m.status==="bought"?`<span style="color:var(--forest)">${money(m.finalPrice)}</span>`
+    : bp!==null?`<span style="color:var(--ochre)">${money(bp)}</span>`:`<span style="color:var(--faint)">—</span>`;
+  return `<button class="rrow" style="width:100%" data-act="openin" data-id="${m.id}">
+    <div class="txt" style="padding:12px 16px">
+      <div style="min-width:0">
+        <div class="nm" style="font-weight:500">${esc((m.zone||"Sin zona"))}</div>
+        <div class="qt">${m.qtyNeeded} ${esc(m.unit)}${diff?" · "+esc(diff):""}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge" style="background:${st.soft};color:${st.color}">${st.label}</span>
+        <span style="font-size:14px">${right}</span>
+      </div>
+    </div></button>`;
 }
 
 function card(p){
@@ -482,7 +586,34 @@ function compress(file){ return new Promise((res,rej)=>{ const r=new FileReader(
     res(c.toDataURL("image/jpeg",0.6)); }; img.onerror=rej; img.src=e.target.result; };
   r.onerror=rej; r.readAsDataURL(file); }); }
 
-/* ---------------- backup / restore ---------------- */
+/* ---------------- supplier quote PDF (via print) ---------------- */
+function buildPdf(){
+  const list = S.plants.filter(p=>p.status!=="bought").slice()
+    .sort((a,b)=>a.name.localeCompare(b.name,"es",{sensitivity:"base"}));
+  if(!list.length){ alert("No hay plantas pendientes para cotizar."); return; }
+  const rows = list.map((p,i)=>{
+    const specs=[p.specs.size,p.specs.container,p.specs.notes].filter(Boolean).join(" · ");
+    return `<tr><td>${i+1}</td>
+      <td><b>${esc(p.name)}</b>${p.scientific?`<br><i style="color:#666">${esc(p.scientific)}</i>`:""}${p.zone?`<br><span style="color:#888;font-size:11px">${esc(p.zone)}</span>`:""}</td>
+      <td style="text-align:center;white-space:nowrap">${p.qtyNeeded} ${esc(p.unit)}</td>
+      <td>${esc(specs)||"—"}</td>
+      <td class="fill"></td><td class="fill"></td></tr>`;
+  }).join("");
+  const totalItems=list.reduce((s,p)=>s+(Number(p.qtyNeeded)||0),0);
+  const fecha=new Date().toLocaleDateString("es-MX",{year:"numeric",month:"long",day:"numeric"});
+  document.getElementById("printsheet").innerHTML=`<div class="psheet">
+    <h1>Solicitud de cotización — Plantas</h1>
+    <div class="pmeta">Casa Jacarandas · ${fecha}</div>
+    <table class="pline"><tr><td>Proveedor: ______________________________</td><td style="text-align:right">Contacto/Tel.: __________________</td></tr></table>
+    <p class="pnote">Favor de cotizar el <b>precio unitario</b> de cada planta según las especificaciones indicadas. Total de piezas solicitadas: <b>${totalItems}</b>.</p>
+    <table class="ptable"><thead><tr><th>#</th><th>Planta</th><th>Cant.</th><th>Especificaciones</th><th>Precio unit.</th><th>Importe</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    <p class="pnote">Notas / vigencia de la cotización: ____________________________________________________________</p>
+  </div>`;
+  setTimeout(()=>window.print(),50);
+}
+
+
 function backup(){ const blob=new Blob([JSON.stringify(S.plants,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob); const a=document.createElement("a");
   a.href=url; a.download="cuemanco-respaldo-"+new Date().toISOString().slice(0,10)+".json";
@@ -521,7 +652,12 @@ app.addEventListener("click",async e=>{
   switch(act){
     case "tab": S.tab=b.dataset.tab; S.view=b.dataset.tab; render(); break;
     case "filter": S.filter=b.dataset.f; render(); break;
+    case "sort": S.sort = S.sort==="az"?"original":"az"; render(); break;
     case "open": S.returnTo=S.tab; S.activeId=id; S.view="detail"; S.editSpecs=false; S.specsDraft=null; S.addProp=false; S.propDraft=null; render(); break;
+    case "opengroup": S.groupKey=b.dataset.key; S.view="group"; render(); break;
+    case "backgroup": S.view="list"; S.groupKey=null; render(); break;
+    case "openin": S.returnTo="group"; S.activeId=id; S.view="detail"; S.editSpecs=false; S.specsDraft=null; S.addProp=false; S.propDraft=null; render(); break;
+    case "addlike": { const ms=S.plants.filter(p=>p.name.trim().toLowerCase()===S.groupKey); const f=ms[0]||{}; S.showAdd=true; S.addDraft={name:f.name||"",scientific:f.scientific||"",unit:f.unit||"piezas",qtyNeeded:1,zone:""}; render(); break; }
     case "back": S.view=S.returnTo; S.activeId=null; render(); break;
     case "hidegot": S.hideGot=!S.hideGot; render(); break;
     case "quick": { const q=getP(id); if(q){ if(q.status==="bought"){ q.status=q.proposals.length?"comparing":"pending"; q.finalProposalId=null;q.finalSupplier="";q.finalPrice="";q.finalQty=""; } else { const bpr=bestProp(q); q.status="bought"; q.finalProposalId=bpr?bpr.id:null; q.finalSupplier=bpr?bpr.supplier:""; q.finalPrice=bpr?bpr.price:""; q.finalQty=q.qtyNeeded; } await persist(); } break; }
@@ -547,6 +683,7 @@ app.addEventListener("click",async e=>{
     case "saveadd": { const d=S.addDraft||{}; if(d.name&&d.name.trim()){ S.plants.push(mk({id:uid(),name:d.name.trim(),scientific:d.scientific||"",qtyNeeded:Number(d.qtyNeeded)||1,unit:d.unit||"piezas",zone:d.zone||"",specs:{size:"",container:"",notes:d.notes||""}})); S.showAdd=false; S.addDraft=null; await persist(); } break; }
     case "backup": backup(); break;
     case "restore": document.getElementById("restorein").click(); break;
+    case "pdf": buildPdf(); break;
   }
 });
 
