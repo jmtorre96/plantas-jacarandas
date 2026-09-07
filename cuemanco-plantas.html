@@ -194,50 +194,85 @@ const STATUS = { pending:{label:"Por comprar",color:"var(--faint)",soft:"#E7E9DE
   bought:{label:"Comprado",color:"var(--forest)",soft:"var(--forestSoft)"} };
 
 const money = n => "$"+(Number(n)||0).toLocaleString("es-MX",{maximumFractionDigits:2});
+function uom(q,u){const s=(u||"").trim().toLowerCase();return ["pieza","piezas","lote","lotes","ejemplar","ejemplares"].includes(s)?(Number(q)===1?"pieza":"piezas"):u;}
 const uid = () => Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
 const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const bestPrice = p => p.proposals.length ? Math.min(...p.proposals.map(x=>Number(x.price)||Infinity)) : null;
 const bestProp  = p => p.proposals.reduce((b,pr)=> b===null||(Number(pr.price)||Infinity)<(Number(b.price)||Infinity)?pr:b, null);
 
-const mk = o => Object.assign({ scientific:"", qtyNeeded:1, unit:"ejemplar", zone:"",
+const mk = o => Object.assign({ scientific:"", qtyNeeded:1, unit:"pieza", zone:"",
   specs:{size:"",container:"",notes:""}, proposals:[], photos:[], status:"pending",
   finalProposalId:null, finalSupplier:"", finalPrice:"", finalQty:"", createdAt:Date.now() }, o);
 
 const SEED = [
-  mk({id:"encino-rojo",name:"Encino rojo",scientific:"Quercus sp.",qtyNeeded:2,unit:"ejemplares",zone:"Lindero norte",
+  mk({id:"encino-rojo",name:"Encino rojo",scientific:"Quercus sp.",qtyNeeded:2,unit:"pieza",zone:"Lindero norte",
     specs:{size:"",container:"",notes:"Reubicados fuera del borde del lindero norte."}}),
-  mk({id:"monstera",name:"Monstera adansonii",scientific:"Monstera adansonii",qtyNeeded:1,unit:"lote",zone:"Jardinera baño",
+  mk({id:"monstera",name:"Monstera adansonii",scientific:"Monstera adansonii",qtyNeeded:1,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Jardinera interior del baño (3.75×1 m, bajo domo)."}}),
-  mk({id:"helecho-chivo",name:"Helecho chivo",scientific:"Nephrolepis sp.",qtyNeeded:1,unit:"lote",zone:"Jardinera baño",
+  mk({id:"helecho-chivo",name:"Helecho chivo",scientific:"Nephrolepis sp.",qtyNeeded:1,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Jardinera interior del baño."}}),
-  mk({id:"caladios",name:"Caladios",scientific:"Caladium bicolor",qtyNeeded:1,unit:"lote",zone:"Jardinera baño",
+  mk({id:"caladios",name:"Caladios",scientific:"Caladium bicolor",qtyNeeded:1,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Jardinera interior del baño."}}),
-  mk({id:"dieffenbachia",name:"Dieffenbachia",scientific:"Dieffenbachia seguine",qtyNeeded:1,unit:"lote",zone:"Jardinera baño",
+  mk({id:"dieffenbachia",name:"Dieffenbachia",scientific:"Dieffenbachia seguine",qtyNeeded:1,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Jardinera interior del baño."}}),
-  mk({id:"cola-de-zorro",name:"Cola de zorro",scientific:"Asparagus densiflorus",qtyNeeded:1,unit:"lote",zone:"Jardinera baño",
+  mk({id:"cola-de-zorro",name:"Cola de zorro",scientific:"Asparagus densiflorus",qtyNeeded:1,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Jardinera interior del baño."}}),
-  mk({id:"pothos",name:"Pothos",scientific:"Epipremnum aureum",qtyNeeded:1,unit:"lote",zone:"Jardinera baño",
+  mk({id:"pothos",name:"Pothos",scientific:"Epipremnum aureum",qtyNeeded:1,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Jardinera interior del baño."}}),
-  mk({id:"xanadu-terraza",name:"Xanadú",scientific:"Philodendron xanadu",qtyNeeded:12,unit:"piezas",zone:"Jardinera terraza",
+  mk({id:"xanadu-terraza",name:"Xanadú",scientific:"Philodendron xanadu",qtyNeeded:12,unit:"pieza",zone:"Jardinera terraza",
     specs:{size:"Máx. 30 cm de alto",container:"",notes:"Para la jardinera de la terraza."}}),
-  mk({id:"helecho-terraza",name:"Helecho chivo — terraza",scientific:"Nephrolepis sp.",qtyNeeded:8,unit:"piezas",zone:"Jardinera terraza",
+  mk({id:"helecho-terraza",name:"Helecho chivo — terraza",scientific:"Nephrolepis sp.",qtyNeeded:8,unit:"pieza",zone:"Jardinera terraza",
     specs:{size:"Máx. 30 cm de alto",container:"",notes:"Para la jardinera de la terraza."}}),
-  mk({id:"pothos-bano-colg",name:"Pothos colgante",scientific:"Epipremnum aureum",qtyNeeded:2,unit:"piezas",zone:"Jardinera baño",
+  mk({id:"pothos-bano-colg",name:"Pothos colgante",scientific:"Epipremnum aureum",qtyNeeded:2,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"Colgante en maceta",notes:""}}),
-  mk({id:"pothos-terraza",name:"Pothos",scientific:"Epipremnum aureum",qtyNeeded:6,unit:"piezas",zone:"Jardinera terraza",
+  mk({id:"pothos-terraza",name:"Pothos",scientific:"Epipremnum aureum",qtyNeeded:6,unit:"pieza",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:""}}),
-  mk({id:"pothos-bar",name:"Pothos",scientific:"Epipremnum aureum",qtyNeeded:2,unit:"piezas",zone:"Jardinera bar",
+  mk({id:"pothos-bar",name:"Pothos",scientific:"Epipremnum aureum",qtyNeeded:2,unit:"pieza",zone:"Jardinera bar",
     specs:{size:"",container:"",notes:""}}),
-  mk({id:"monstera-trepadora",name:"Monstera adansonii (trepadora)",scientific:"Monstera adansonii",qtyNeeded:2,unit:"piezas",zone:"",status:"comparing",
+  mk({id:"monstera-trepadora",name:"Monstera adansonii (trepadora)",scientific:"Monstera adansonii",qtyNeeded:2,unit:"pieza",zone:"",status:"comparing",
     specs:{size:"",container:"Con palo de madera (~metros de alto) para trepar",notes:""},
     proposals:[{id:"tal-monstera",supplier:"Talibán",location:"",price:"2800",qtyAvailable:"",notes:"Confirmar si el precio es por pieza o por las 2."}]}),
-  mk({id:"filodendro-plowmanii",name:"Filodendro plowmanii",scientific:"Philodendron plowmanii",qtyNeeded:2,unit:"piezas",zone:"Jardinera baño",
+  mk({id:"filodendro-plowmanii",name:"Filodendro plowmanii",scientific:"Philodendron plowmanii",qtyNeeded:2,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Talibán tiene 1 que me gustó mucho."}}),
-  mk({id:"dieffenbachia-mediana",name:"Dieffenbachia mediana",scientific:"Dieffenbachia seguine",qtyNeeded:2,unit:"piezas",zone:"",
+  mk({id:"dieffenbachia-mediana",name:"Dieffenbachia mediana",scientific:"Dieffenbachia seguine",qtyNeeded:2,unit:"pieza",zone:"",
     specs:{size:"60 cm o más",container:"",notes:""}}),
   mk({id:"helecho-nido",name:"Helecho nido de ave",scientific:"Asplenium nidus",qtyNeeded:1,unit:"pieza",zone:"Jardinera baño",status:"comparing",
     specs:{size:"Mín. 1 m de alto",container:"",notes:""},
     proposals:[{id:"tal-nido",supplier:"Talibán",location:"",price:"2400",qtyAvailable:"",notes:""}]}),
+  mk({id:"raphidophora",name:"Rhaphidophora tetrasperma",scientific:"Rhaphidophora tetrasperma",qtyNeeded:4,unit:"pieza",zone:"Jardinera baño",
+    specs:{size:"Jóvenes/compactas",container:"",notes:"Hojas lobuladas; crecimiento bajo con caída, no tipo copete. Borde frontal."}}),
+  mk({id:"sustrato-bano",name:"Tierra vegetal / sustrato orgánico",qtyNeeded:600,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Ligera, rica en materia orgánica; evitar tierra pesada/arcillosa. 40% de la mezcla."}}),
+  mk({id:"fibracoco-bano",name:"Fibra de coco",qtyNeeded:375,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Cantidad ya hidratada/expandida. 25% de la mezcla."}}),
+  mk({id:"cortezafina-bano",name:"Corteza de pino fina/media",qtyNeeded:300,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Compostada, ~1–2 cm; mezclada con el sustrato. 20% de la mezcla."}}),
+  mk({id:"perlita-bano",name:"Perlita gruesa",qtyNeeded:225,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Aireación y drenaje del sustrato. 15% de la mezcla."}}),
+  mk({id:"cortezagruesa-bano",name:"Corteza de pino gruesa",qtyNeeded:200,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Mulch/acabado superficial (~5 cm), adicional al sustrato."}}),
+  mk({id:"piedravolcanica-bano",name:"Piedra volcánica",qtyNeeded:550,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Material drenante (capa ~15 cm)."}}),
+  mk({id:"tezontle-bano",name:"Tezontle",qtyNeeded:365,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Material drenante (capa ~10 cm)."}}),
+  mk({id:"grava-bano",name:"Grava de río",qtyNeeded:365,unit:"L",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Lavada. Drenante (capa ~10 cm)."}}),
+  mk({id:"geotextil-bano",name:"Geotextil permeable",qtyNeeded:4,unit:"m²",zone:"Jardinera baño",
+    specs:{size:"",container:"",notes:"Separación entre grava y sustrato; debe permitir el paso de agua."}}),
+  mk({id:"sustrato-terraza",name:"Tierra vegetal / sustrato orgánico",qtyNeeded:285,unit:"L",zone:"Jardinera terraza",
+    specs:{size:"",container:"",notes:"Ligera y rica en materia orgánica. 45% de la mezcla."}}),
+  mk({id:"fibracoco-terraza",name:"Fibra de coco",qtyNeeded:160,unit:"L",zone:"Jardinera terraza",
+    specs:{size:"",container:"",notes:"Cantidad hidratada/expandida. 25% de la mezcla."}}),
+  mk({id:"cortezafina-terraza",name:"Corteza de pino fina/media",qtyNeeded:125,unit:"L",zone:"Jardinera terraza",
+    specs:{size:"",container:"",notes:"Compostada; incorporada al sustrato. 20% de la mezcla."}}),
+  mk({id:"perlita-terraza",name:"Perlita gruesa",qtyNeeded:65,unit:"L",zone:"Jardinera terraza",
+    specs:{size:"",container:"",notes:"Aireación y drenaje. 10% de la mezcla."}}),
+  mk({id:"cortezagruesa-terraza",name:"Corteza de pino gruesa",qtyNeeded:75,unit:"L",zone:"Jardinera terraza",
+    specs:{size:"",container:"",notes:"Mulch/acabado superficial (~3 cm)."}}),
+  mk({id:"tezontle-terraza",name:"Tezontle o piedra volcánica",qtyNeeded:125,unit:"L",zone:"Jardinera terraza",
+    specs:{size:"",container:"",notes:"Usar uno de los dos, no ambos (~5 cm inferiores)."}}),
+  mk({id:"geotextil-terraza",name:"Geotextil permeable",qtyNeeded:3,unit:"m²",zone:"Jardinera terraza",
+    specs:{size:"",container:"",notes:"Separación entre drenaje y sustrato."}}),
 ];
 
 /* ---------------- storage (IndexedDB + localStorage fallback) ---------------- */
@@ -276,6 +311,18 @@ async function init(){
   if(!(await DB.get("cleanup-v1"))){
     S.plants = S.plants.filter(p=>!REMOVE.includes(p.id));
     await DB.set("cleanup-v1", true);
+    await save();
+  }
+  if(!(await DB.get("units-v1"))){
+    S.plants.forEach(p=>{ const s=(p.unit||"").trim().toLowerCase(); if(["lote","lotes","ejemplar","ejemplares","pieza","piezas"].includes(s)) p.unit="pieza"; });
+    await DB.set("units-v1", true);
+    await save();
+  }
+  const ADD = ["raphidophora","sustrato-bano","fibracoco-bano","cortezafina-bano","perlita-bano","cortezagruesa-bano","piedravolcanica-bano","tezontle-bano","grava-bano","geotextil-bano","sustrato-terraza","fibracoco-terraza","cortezafina-terraza","perlita-terraza","cortezagruesa-terraza","tezontle-terraza","geotextil-terraza"];
+  if(!(await DB.get("materials-v1"))){
+    const have=new Set(S.plants.map(p=>p.id));
+    for(const id of ADD){ if(!have.has(id)){ const s=SEED.find(x=>x.id===id); if(s) S.plants.push(JSON.parse(JSON.stringify(s))); } }
+    await DB.set("materials-v1", true);
     await save();
   }
   render();
@@ -375,7 +422,7 @@ function groupCard(key,ms){
         <div class="name">${esc(p0.name)}</div>
         ${p0.scientific?`<div class="sci">${esc(p0.scientific)}</div>`:""}
       </div><span class="badge" style="${badgeStyle}">${ms.length} zonas</span></div>
-      <div class="meta"><span>Total: <b style="color:var(--ink)">${totalQty}</b> ${esc(unit)}</span></div>
+      <div class="meta"><span>Total: <b style="color:var(--ink)">${totalQty}</b> ${esc(uom(totalQty,unit))}</span></div>
       <div class="price">${price}</div>
     </div></button>`;
 }
@@ -389,7 +436,7 @@ function viewGroup(ms){
   </header>
   <div class="pad" style="padding-top:16px">
     ${p0.scientific?`<div style="font-size:14px;font-style:italic;color:var(--faint)">${esc(p0.scientific)}</div>`:""}
-    <div class="muted" style="margin-top:6px">Total a comprar: <b style="color:var(--ink)">${totalQty}</b> ${esc(unit)} en ${ms.length} zonas</div>
+    <div class="muted" style="margin-top:6px">Total a comprar: <b style="color:var(--ink)">${totalQty}</b> ${esc(uom(totalQty,unit))} en ${ms.length} zonas</div>
     <div class="section rgroup" style="margin-top:16px">
       ${ms.map(instanceRow).join("")}
     </div>
@@ -407,7 +454,7 @@ function instanceRow(m){
     <div class="txt" style="padding:12px 16px">
       <div style="min-width:0">
         <div class="nm" style="font-weight:500">${esc((m.zone||"Sin zona"))}</div>
-        <div class="qt">${m.qtyNeeded} ${esc(m.unit)}${diff?" · "+esc(diff):""}</div>
+        <div class="qt">${m.qtyNeeded} ${esc(uom(m.qtyNeeded,m.unit))}${diff?" · "+esc(diff):""}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="badge" style="background:${st.soft};color:${st.color}">${st.label}</span>
@@ -430,7 +477,7 @@ function card(p){
         <div class="name">${esc(p.name)}</div>
         ${p.scientific?`<div class="sci">${esc(p.scientific)}</div>`:""}
       </div><span class="badge" style="background:${st.soft};color:${st.color}">${st.label}</span></div>
-      <div class="meta"><span>Necesito: <b style="color:var(--ink)">${p.qtyNeeded}</b> ${esc(p.unit)}</span>${p.proposals.length?`<span>${ic("store","xs")} ${p.proposals.length}</span>`:""}</div>
+      <div class="meta"><span>Necesito: <b style="color:var(--ink)">${p.qtyNeeded}</b> ${esc(uom(p.qtyNeeded,p.unit))}</span>${p.proposals.length?`<span>${ic("store","xs")} ${p.proposals.length}</span>`:""}</div>
       <div class="price">${price}</div>
     </div></button>`;
 }
@@ -467,7 +514,7 @@ function rrow(p){
     <button class="chk" data-act="quick" data-id="${p.id}">${bought?icCheckCircle():ic("circle")}</button>
     <button class="txt" data-act="open" data-id="${p.id}">
       <div style="min-width:0"><div class="nm" style="${bought?"text-decoration:line-through;color:var(--faint)":""}">${esc(p.name)}</div>
-        <div class="qt">${p.qtyNeeded} ${esc(p.unit)}${p.proposals.length?" · "+p.proposals.length+" local"+(p.proposals.length>1?"es":""):""}</div></div>
+        <div class="qt">${p.qtyNeeded} ${esc(uom(p.qtyNeeded,p.unit))}${p.proposals.length?" · "+p.proposals.length+" local"+(p.proposals.length>1?"es":""):""}</div></div>
       <div style="font-size:14px">${right}</div>
     </button></div>`;
 }
@@ -483,7 +530,7 @@ function viewDetail(p){
   <div class="pad" style="padding-top:16px">
     ${p.scientific?`<div style="font-size:14px;font-style:italic;color:var(--faint)">${esc(p.scientific)}</div>`:""}
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <span class="muted">Cantidad que necesito:</span>${stepper("qtyNeeded",p.qtyNeeded,p.id)}<span class="muted">${esc(p.unit)}</span>
+      <span class="muted">Cantidad que necesito:</span>${stepper("qtyNeeded",p.qtyNeeded,p.id)}<span class="muted">${esc(uom(p.qtyNeeded,p.unit))}</span>
     </div>
 
     <div class="section"><div class="sectitle"><div class="l">${ic("pin","s")} Zona de la casa</div></div>
@@ -595,7 +642,7 @@ function buildPdf(){
     const specs=[p.specs.size,p.specs.container,p.specs.notes].filter(Boolean).join(" · ");
     return `<tr><td>${i+1}</td>
       <td><b>${esc(p.name)}</b>${p.scientific?`<br><i style="color:#666">${esc(p.scientific)}</i>`:""}${p.zone?`<br><span style="color:#888;font-size:11px">${esc(p.zone)}</span>`:""}</td>
-      <td style="text-align:center;white-space:nowrap">${p.qtyNeeded} ${esc(p.unit)}</td>
+      <td style="text-align:center;white-space:nowrap">${p.qtyNeeded} ${esc(uom(p.qtyNeeded,p.unit))}</td>
       <td>${esc(specs)||"—"}</td>
       <td class="fill"></td><td class="fill"></td></tr>`;
   }).join("");
@@ -676,7 +723,7 @@ app.addEventListener("click",async e=>{
     case "clearfinal": { if(p){ p.status=p.proposals.length?"comparing":"pending"; p.finalProposalId=null;p.finalSupplier="";p.finalPrice="";p.finalQty=""; await persist(); } break; }
     case "buymanual": { if(p){ p.status="bought"; p.finalQty=p.qtyNeeded; await persist(); } break; }
     case "delplant": if(p && confirm('¿Eliminar "'+p.name+'"?')){ S.plants=S.plants.filter(x=>x.id!==id); S.view=S.returnTo; S.activeId=null; await persist(); } break;
-    case "add": S.showAdd=true; S.addDraft={qtyNeeded:1,unit:"piezas"}; render(); break;
+    case "add": S.showAdd=true; S.addDraft={qtyNeeded:1,unit:"pieza"}; render(); break;
     case "closeadd-bg": if(e.target===b){ S.showAdd=false; S.addDraft=null; render(); } break;
     case "closeadd": S.showAdd=false; S.addDraft=null; render(); break;
     case "addzone": S.addDraft=S.addDraft||{}; S.addDraft.zone=b.dataset.z; render(); break;
