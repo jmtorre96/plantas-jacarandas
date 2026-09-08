@@ -201,12 +201,13 @@ const STATUS = { pending:{label:"Por comprar",color:"var(--faint)",soft:"#E7E9DE
 const money = n => "$"+(Number(n)||0).toLocaleString("es-MX",{maximumFractionDigits:2});
 function uom(q,u){const s=(u||"").trim().toLowerCase();return ["pieza","piezas","lote","lotes","ejemplar","ejemplares"].includes(s)?(Number(q)===1?"pieza":"piezas"):u;}
 function qtyfmt(n){ n=Number(n)||0; return Number.isInteger(n)?String(n):String(parseFloat(n.toFixed(3))); }
+function tgtDelta(price,target){ const t=Number(target),pr=Number(price); if(!t||!pr) return ""; const d=Math.round((pr-t)/t*100); const under=d<=0; return ` <span style="font-size:11px;color:${under?"var(--forest)":"var(--danger)"}">${d>0?"+":""}${d}% vs objetivo</span>`; }
 const uid = () => Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
 const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const bestPrice = p => p.proposals.length ? Math.min(...p.proposals.map(x=>Number(x.price)||Infinity)) : null;
 const bestProp  = p => p.proposals.reduce((b,pr)=> b===null||(Number(pr.price)||Infinity)<(Number(b.price)||Infinity)?pr:b, null);
 
-const mk = o => { const m = Object.assign({ scientific:"", qtyNeeded:1, unit:"pieza", zone:"", category:"Plantas",
+const mk = o => { const m = Object.assign({ scientific:"", qtyNeeded:1, unit:"pieza", zone:"", category:"Plantas", target:"",
   specs:{size:"",container:"",notes:""}, proposals:[], photos:[], status:"pending",
   finalProposalId:null, finalSupplier:"", finalPrice:"", finalQty:"", createdAt:Date.now() }, o);
   if(!o.category) m.category = ["L","m²"].includes(m.unit) ? "Tierra" : "Plantas";
@@ -365,7 +366,8 @@ function totals(){
   const spent=S.plants.filter(p=>p.status==="bought").reduce((s,p)=>s+(Number(p.finalPrice)||0)*(Number(p.finalQty||p.qtyNeeded)||0),0);
   const pend=S.plants.filter(p=>p.status!=="bought").reduce((s,p)=>{const b=bestPrice(p);return s+(b?b*(Number(p.qtyNeeded)||0):0);},0);
   const bought=S.plants.filter(p=>p.status==="bought").length;
-  return {spent,pend,bought};
+  const budget=S.plants.filter(p=>p.status!=="bought").reduce((s,p)=>s+(Number(p.target)||0)*(Number(p.qtyNeeded)||0),0);
+  return {spent,pend,bought,budget};
 }
 
 function fab(){ return `<button class="fab" data-act="add">${ic("plus")} Agregar</button>`; }
@@ -391,7 +393,7 @@ function viewList(){
     <h1>Compra de plantas</h1>
     <div class="stats">
       <div class="stat dark"><div class="k">Gastado</div><div class="v">${money(spent)}</div><div class="s">${bought} de ${S.plants.length} compradas</div></div>
-      <div class="stat light"><div class="k">Estimado pendiente</div><div class="v" style="color:var(--ochre)">${money(pend)}</div><div class="s">al mejor precio hallado</div></div>
+      <div class="stat light"><div class="k">Estimado pendiente</div><div class="v" style="color:var(--ochre)">${money(pend)}</div><div class="s">${budget>0?`Objetivo: ${money(budget)} <span style="color:${pend<=budget?"var(--forest)":"var(--danger)"}">(${pend<=budget?"dentro":"arriba"})</span>`:"al mejor precio hallado"}</div></div>
     </div>
     <div class="toolrow" style="flex-wrap:wrap;gap:12px 16px;align-items:center">
       <button class="tool" data-act="backup">${ic("dl","s")} Respaldar</button>
@@ -493,7 +495,8 @@ function card(p){
   const st=STATUS[p.status], bp=bestPrice(p), cover=p.photos[0];
   const price = p.status==="bought"
     ? `<span style="color:var(--forest)">Pagado: <b>${money(p.finalPrice)}</b>${p.finalSupplier?" · "+esc(p.finalSupplier):""}</span>`
-    : bp!==null ? `<span style="color:var(--ochre)">Mejor precio: <b>${money(bp)}</b></span>`
+    : bp!==null ? `<span style="color:var(--ochre)">Mejor precio: <b>${money(bp)}</b></span>${tgtDelta(bp,p.target)}`
+    : Number(p.target) ? `<span style="color:var(--faint)">Objetivo: <b>${money(p.target)}</b></span>`
     : `<span style="color:var(--faint)">Sin propuestas aún</span>`;
   return `<button class="pcard" data-act="open" data-id="${p.id}">
     <div class="cover">${cover?`<img src="${cover}">`:ic("leaf")}</div>
@@ -583,6 +586,13 @@ function viewDetail(p){
       :`<div class="box">${specRow("Tamaño / altura",p.specs.size)}${specRow("Contenedor",p.specs.container)}${specRow("Notas",p.specs.notes)}</div>`}
     </div>
 
+    <div class="section"><div class="sectitle"><div class="l">${ic("award","s")} Precio objetivo / presupuesto</div></div>
+      <div class="box">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted">Objetivo por ${esc(uom(1,p.unit))}:</span>${moneyIn("target",p.target||"",p.id)}</div>
+        ${Number(p.target)?`<div class="muted" style="margin-top:8px">Presupuesto de la partida: <b style="color:var(--ink)">${money((Number(p.target)||0)*(Number(p.qtyNeeded)||0))}</b> <span style="color:var(--faint)">(${qtyfmt(p.qtyNeeded)} ${esc(uom(p.qtyNeeded,p.unit))})</span></div>`:`<div class="muted" style="margin-top:8px;color:var(--faint)">Pon tu precio objetivo para comparar contra las cotizaciones.</div>`}
+        ${(Number(p.target)&&bestPrice(p)!==null)?`<div style="margin-top:6px;font-size:13px">Mejor propuesta: <b>${money(bestPrice(p))}</b>${tgtDelta(bestPrice(p),p.target)}</div>`:""}
+      </div></div>
+
     <div class="section"><div class="sectitle"><div class="l">${ic("store","s")} Propuestas de locales${p.proposals.length?" ("+p.proposals.length+")":""}</div>
       ${bp!==null?`<span style="font-size:14px;color:var(--ochre)">Mejor: <b>${money(bp)}</b></span>`:""}</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -623,7 +633,7 @@ function propRow(p,pr,bp){ const isBest=Number(pr.price)===bp, isFinal=p.finalPr
       <div style="display:flex;align-items:center;gap:6px"><span style="color:var(--sub)">${ic("store","xs")}</span><b style="font-size:14px">${esc(pr.supplier||"Local sin nombre")}</b>${isBest?`<span class="tag">${ic("award","xs")} mejor</span>`:""}</div>
       ${pr.location?`<div style="font-size:12px;color:var(--faint);margin-top:2px">${esc(pr.location)}</div>`:""}
       ${pr.notes?`<div style="font-size:12px;color:var(--sub);margin-top:4px">${esc(pr.notes)}</div>`:""}
-    </div><div style="text-align:right"><div class="pr">${money(pr.price)}</div>${pr.qtyAvailable?`<div style="font-size:12px;color:var(--faint)">${esc(pr.qtyAvailable)} disp.</div>`:""}</div></div>
+    </div><div style="text-align:right"><div class="pr">${money(pr.price)}</div>${Number(p.target)?`<div style="margin-top:2px">${tgtDelta(pr.price,p.target)}</div>`:""}${pr.qtyAvailable?`<div style="font-size:12px;color:var(--faint)">${esc(pr.qtyAvailable)} disp.</div>`:""}</div></div>
     <div class="rowbtns"><button class="btn ${isFinal?"primary":""}" style="flex:1;${isFinal?"":"border:1px solid var(--forest);color:var(--forest)"}" data-act="choose" data-id="${p.id}" data-pid="${pr.id}">${ic("check","xs")} ${isFinal?"Elegida":"Elegir"}</button>
       <button class="btn ghost" style="color:var(--danger)" data-act="delprop" data-id="${p.id}" data-pid="${pr.id}">${ic("trash","xs")}</button></div></div>`; }
 
@@ -654,6 +664,7 @@ function modalAdd(){ const d=S.addDraft||{}; const custom=d.zone&&!ZONES.include
     <div class="chips" style="margin-top:6px">${ZONES.map(z=>`<button class="chip ${d.zone===z?"on":""}" data-act="addzone" data-z="${esc(z)}">${esc(z)}</button>`).join("")}</div>
     <input class="inp" style="margin-top:8px" data-focus="add-zone-custom" data-inp="add-zone-custom" value="${custom?esc(d.zone):""}" placeholder="Otra zona…">
     <div class="space"></div>${field("Notas","add-notes",d.notes||"","Requisitos, estado deseado…",true)}
+    <div class="space"></div><label class="f"><span>Precio objetivo / presupuesto (opcional)</span><div class="moneyin" style="margin-top:4px"><span>$</span><input inputmode="decimal" data-focus="add-target" data-inp="add-target" value="${esc(d.target||"")}" placeholder="0"></div></label>
     <button class="btn primary" style="width:100%;margin-top:16px;padding:14px" ${(!d.name||!d.name.trim())?"disabled":""} data-act="saveadd">Agregar a la lista</button>
   </div></div>`; }
 
@@ -721,7 +732,8 @@ app.addEventListener("input",async e=>{
   if(f==="zone-custom"){ const p=getP(S.activeId); if(p){ p.zone=v; await save(); } return; }
   if(f.startsWith("spec-")){ S.specsDraft=S.specsDraft||{...getP(S.activeId).specs}; S.specsDraft[f.slice(5)]=v; return; }
   if(f.startsWith("prop-")){ S.propDraft=S.propDraft||{}; const key={ "prop-supplier":"supplier","prop-location":"location","prop-price":"price","prop-qty":"qtyAvailable","prop-notes":"notes"}[f]; S.propDraft[key]=v; if(f==="prop-price"){ const b=app.querySelector('[data-act="saveprop"]'); if(b){ if(v)b.removeAttribute("disabled"); else b.setAttribute("disabled",""); } } return; }
-  if(f.startsWith("add-")){ S.addDraft=S.addDraft||{}; const key={"add-name":"name","add-sci":"scientific","add-unit":"unit","add-notes":"notes","add-zone-custom":"zone"}[f]; S.addDraft[key]=v; if(f==="add-name"){ const b=app.querySelector('[data-act="saveadd"]'); if(b){ if(v.trim())b.removeAttribute("disabled"); else b.setAttribute("disabled",""); } } return; }
+  if(f.startsWith("add-")){ S.addDraft=S.addDraft||{}; const key={"add-name":"name","add-sci":"scientific","add-unit":"unit","add-notes":"notes","add-zone-custom":"zone","add-target":"target"}[f]; S.addDraft[key]=v; if(f==="add-name"){ const b=app.querySelector('[data-act="saveadd"]'); if(b){ if(v.trim())b.removeAttribute("disabled"); else b.setAttribute("disabled",""); } } return; }
+  if(f==="target"){ const p=getP(id); if(p){ p.target=v; await save(); render(); } return; }
   if(f==="finalPrice"){ const p=getP(id); if(p){ p.finalPrice=v; await save(); } return; }
   if(f==="finalSupplier"){ const p=getP(id); if(p){ p.finalSupplier=v; await save(); } return; }
 });
@@ -763,7 +775,7 @@ app.addEventListener("click",async e=>{
     case "closeadd": S.showAdd=false; S.addDraft=null; render(); break;
     case "addcat": S.addDraft=S.addDraft||{}; S.addDraft.category=b.dataset.c; render(); break;
     case "addzone": S.addDraft=S.addDraft||{}; S.addDraft.zone=b.dataset.z; render(); break;
-    case "saveadd": { const d=S.addDraft||{}; if(d.name&&d.name.trim()){ S.plants.push(mk({id:uid(),name:d.name.trim(),scientific:d.scientific||"",qtyNeeded:Number(d.qtyNeeded)||1,unit:d.unit||"pieza",zone:d.zone||"",category:d.category||"Plantas",specs:{size:"",container:"",notes:d.notes||""}})); S.showAdd=false; S.addDraft=null; await persist(); } break; }
+    case "saveadd": { const d=S.addDraft||{}; if(d.name&&d.name.trim()){ S.plants.push(mk({id:uid(),name:d.name.trim(),scientific:d.scientific||"",qtyNeeded:Number(d.qtyNeeded)||1,unit:d.unit||"pieza",zone:d.zone||"",category:d.category||"Plantas",target:d.target||"",specs:{size:"",container:"",notes:d.notes||""}})); S.showAdd=false; S.addDraft=null; await persist(); } break; }
     case "backup": backup(); break;
     case "restore": document.getElementById("restorein").click(); break;
     case "pdf": buildPdf(); break;
