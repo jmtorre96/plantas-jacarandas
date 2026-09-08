@@ -200,6 +200,7 @@ const STATUS = { pending:{label:"Por comprar",color:"var(--faint)",soft:"#E7E9DE
 
 const money = n => "$"+(Number(n)||0).toLocaleString("es-MX",{maximumFractionDigits:2});
 function uom(q,u){const s=(u||"").trim().toLowerCase();return ["pieza","piezas","lote","lotes","ejemplar","ejemplares"].includes(s)?(Number(q)===1?"pieza":"piezas"):u;}
+function qtyfmt(n){ n=Number(n)||0; return Number.isInteger(n)?String(n):String(parseFloat(n.toFixed(3))); }
 const uid = () => Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
 const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const bestPrice = p => p.proposals.length ? Math.min(...p.proposals.map(x=>Number(x.price)||Infinity)) : null;
@@ -248,35 +249,35 @@ const SEED = [
     proposals:[{id:"tal-nido",supplier:"Talibán",location:"",price:"2400",qtyAvailable:"",notes:""}]}),
   mk({id:"raphidophora",name:"Rhaphidophora tetrasperma",scientific:"Rhaphidophora tetrasperma",qtyNeeded:4,unit:"pieza",zone:"Jardinera baño",
     specs:{size:"Jóvenes/compactas",container:"",notes:"Hojas lobuladas; crecimiento bajo con caída, no tipo copete. Borde frontal."}}),
-  mk({id:"sustrato-bano",name:"Tierra vegetal / sustrato orgánico",qtyNeeded:600,unit:"L",zone:"Jardinera baño",
+  mk({id:"sustrato-bano",name:"Tierra vegetal / sustrato orgánico",qtyNeeded:0.6,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Ligera, rica en materia orgánica; evitar tierra pesada/arcillosa. 40% de la mezcla."}}),
-  mk({id:"fibracoco-bano",name:"Fibra de coco",qtyNeeded:375,unit:"L",zone:"Jardinera baño",
+  mk({id:"fibracoco-bano",name:"Fibra de coco",qtyNeeded:0.375,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Cantidad ya hidratada/expandida. 25% de la mezcla."}}),
-  mk({id:"cortezafina-bano",name:"Corteza de pino fina/media",qtyNeeded:300,unit:"L",zone:"Jardinera baño",
+  mk({id:"cortezafina-bano",name:"Corteza de pino fina/media",qtyNeeded:0.3,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Compostada, ~1–2 cm; mezclada con el sustrato. 20% de la mezcla."}}),
-  mk({id:"perlita-bano",name:"Perlita gruesa",qtyNeeded:225,unit:"L",zone:"Jardinera baño",
+  mk({id:"perlita-bano",name:"Perlita gruesa",qtyNeeded:0.225,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Aireación y drenaje del sustrato. 15% de la mezcla."}}),
-  mk({id:"cortezagruesa-bano",name:"Corteza de pino gruesa",qtyNeeded:200,unit:"L",zone:"Jardinera baño",
+  mk({id:"cortezagruesa-bano",name:"Corteza de pino gruesa",qtyNeeded:0.2,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Mulch/acabado superficial (~5 cm), adicional al sustrato."}}),
-  mk({id:"piedravolcanica-bano",name:"Piedra volcánica",qtyNeeded:550,unit:"L",zone:"Jardinera baño",
+  mk({id:"piedravolcanica-bano",name:"Piedra volcánica",qtyNeeded:0.55,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Material drenante (capa ~15 cm)."}}),
-  mk({id:"tezontle-bano",name:"Tezontle",qtyNeeded:365,unit:"L",zone:"Jardinera baño",
+  mk({id:"tezontle-bano",name:"Tezontle",qtyNeeded:0.365,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Material drenante (capa ~10 cm)."}}),
-  mk({id:"grava-bano",name:"Grava de río",qtyNeeded:365,unit:"L",zone:"Jardinera baño",
+  mk({id:"grava-bano",name:"Grava de río",qtyNeeded:0.365,unit:"m³",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Lavada. Drenante (capa ~10 cm)."}}),
   mk({id:"geotextil-bano",name:"Geotextil permeable",qtyNeeded:4,unit:"m²",zone:"Jardinera baño",
     specs:{size:"",container:"",notes:"Separación entre grava y sustrato; debe permitir el paso de agua."}}),
-  mk({id:"sustrato-terraza",name:"Tierra vegetal / sustrato orgánico",qtyNeeded:285,unit:"L",zone:"Jardinera terraza",
+  mk({id:"sustrato-terraza",name:"Tierra vegetal / sustrato orgánico",qtyNeeded:0.285,unit:"m³",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:"Ligera y rica en materia orgánica. 45% de la mezcla."}}),
-  mk({id:"fibracoco-terraza",name:"Fibra de coco",qtyNeeded:160,unit:"L",zone:"Jardinera terraza",
+  mk({id:"fibracoco-terraza",name:"Fibra de coco",qtyNeeded:0.16,unit:"m³",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:"Cantidad hidratada/expandida. 25% de la mezcla."}}),
-  mk({id:"cortezafina-terraza",name:"Corteza de pino fina/media",qtyNeeded:125,unit:"L",zone:"Jardinera terraza",
+  mk({id:"cortezafina-terraza",name:"Corteza de pino fina/media",qtyNeeded:0.125,unit:"m³",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:"Compostada; incorporada al sustrato. 20% de la mezcla."}}),
-  mk({id:"perlita-terraza",name:"Perlita gruesa",qtyNeeded:65,unit:"L",zone:"Jardinera terraza",
+  mk({id:"perlita-terraza",name:"Perlita gruesa",qtyNeeded:0.065,unit:"m³",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:"Aireación y drenaje. 10% de la mezcla."}}),
-  mk({id:"cortezagruesa-terraza",name:"Corteza de pino gruesa",qtyNeeded:75,unit:"L",zone:"Jardinera terraza",
+  mk({id:"cortezagruesa-terraza",name:"Corteza de pino gruesa",qtyNeeded:0.075,unit:"m³",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:"Mulch/acabado superficial (~3 cm)."}}),
-  mk({id:"tezontle-terraza",name:"Tezontle o piedra volcánica",qtyNeeded:125,unit:"L",zone:"Jardinera terraza",
+  mk({id:"tezontle-terraza",name:"Tezontle o piedra volcánica",qtyNeeded:0.125,unit:"m³",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:"Usar uno de los dos, no ambos (~5 cm inferiores)."}}),
   mk({id:"geotextil-terraza",name:"Geotextil permeable",qtyNeeded:3,unit:"m²",zone:"Jardinera terraza",
     specs:{size:"",container:"",notes:"Separación entre drenaje y sustrato."}}),
@@ -335,6 +336,12 @@ async function init(){
   if(!(await DB.get("cat-v1"))){
     S.plants.forEach(p=>{ if(!p.category) p.category = ["L","m²"].includes(p.unit) ? "Tierra" : "Plantas"; });
     await DB.set("cat-v1", true);
+    await save();
+  }
+  if(!(await DB.get("m3-v1"))){
+    const M3M={"sustrato-bano":0.6,"fibracoco-bano":0.375,"cortezafina-bano":0.3,"perlita-bano":0.225,"cortezagruesa-bano":0.2,"piedravolcanica-bano":0.55,"tezontle-bano":0.365,"grava-bano":0.365,"sustrato-terraza":0.285,"fibracoco-terraza":0.16,"cortezafina-terraza":0.125,"perlita-terraza":0.065,"cortezagruesa-terraza":0.075,"tezontle-terraza":0.125};
+    S.plants.forEach(p=>{ if(M3M[p.id]!==undefined){ p.qtyNeeded=M3M[p.id]; p.unit="m³"; } });
+    await DB.set("m3-v1", true);
     await save();
   }
   render();
@@ -441,7 +448,7 @@ function groupCard(key,ms){
         <div class="name">${esc(p0.name)}</div>
         ${p0.scientific?`<div class="sci">${esc(p0.scientific)}</div>`:""}
       </div><span class="badge" style="${badgeStyle}">${ms.length} zonas</span></div>
-      <div class="meta"><span>Total: <b style="color:var(--ink)">${totalQty}</b> ${esc(uom(totalQty,unit))}</span></div>
+      <div class="meta"><span>Total: <b style="color:var(--ink)">${qtyfmt(totalQty)}</b> ${esc(uom(totalQty,unit))}</span></div>
       <div class="price">${price}</div>
     </div></button>`;
 }
@@ -455,7 +462,7 @@ function viewGroup(ms){
   </header>
   <div class="pad" style="padding-top:16px">
     ${p0.scientific?`<div style="font-size:14px;font-style:italic;color:var(--faint)">${esc(p0.scientific)}</div>`:""}
-    <div class="muted" style="margin-top:6px">Total a comprar: <b style="color:var(--ink)">${totalQty}</b> ${esc(uom(totalQty,unit))} en ${ms.length} zonas</div>
+    <div class="muted" style="margin-top:6px">Total a comprar: <b style="color:var(--ink)">${qtyfmt(totalQty)}</b> ${esc(uom(totalQty,unit))} en ${ms.length} zonas</div>
     <div class="section rgroup" style="margin-top:16px">
       ${ms.map(instanceRow).join("")}
     </div>
@@ -473,7 +480,7 @@ function instanceRow(m){
     <div class="txt" style="padding:12px 16px">
       <div style="min-width:0">
         <div class="nm" style="font-weight:500">${esc((m.zone||"Sin zona"))}</div>
-        <div class="qt">${m.qtyNeeded} ${esc(uom(m.qtyNeeded,m.unit))}${diff?" · "+esc(diff):""}</div>
+        <div class="qt">${qtyfmt(m.qtyNeeded)} ${esc(uom(m.qtyNeeded,m.unit))}${diff?" · "+esc(diff):""}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="badge" style="background:${st.soft};color:${st.color}">${st.label}</span>
@@ -496,7 +503,7 @@ function card(p){
         <div class="name">${esc(p.name)}</div>
         ${p.scientific?`<div class="sci">${esc(p.scientific)}</div>`:""}
       </div><span class="badge" style="background:${st.soft};color:${st.color}">${st.label}</span></div>
-      <div class="meta"><span>Necesito: <b style="color:var(--ink)">${p.qtyNeeded}</b> ${esc(uom(p.qtyNeeded,p.unit))}</span>${p.proposals.length?`<span>${ic("store","xs")} ${p.proposals.length}</span>`:""}</div>
+      <div class="meta"><span>Necesito: <b style="color:var(--ink)">${qtyfmt(p.qtyNeeded)}</b> ${esc(uom(p.qtyNeeded,p.unit))}</span>${p.proposals.length?`<span>${ic("store","xs")} ${p.proposals.length}</span>`:""}</div>
       <div class="price">${price}</div>
     </div></button>`;
 }
@@ -534,7 +541,7 @@ function rrow(p){
     <button class="chk" data-act="quick" data-id="${p.id}">${bought?icCheckCircle():ic("circle")}</button>
     <button class="txt" data-act="open" data-id="${p.id}">
       <div style="min-width:0"><div class="nm" style="${bought?"text-decoration:line-through;color:var(--faint)":""}">${esc(p.name)}</div>
-        <div class="qt">${p.qtyNeeded} ${esc(uom(p.qtyNeeded,p.unit))}${p.proposals.length?" · "+p.proposals.length+" local"+(p.proposals.length>1?"es":""):""}</div></div>
+        <div class="qt">${qtyfmt(p.qtyNeeded)} ${esc(uom(p.qtyNeeded,p.unit))}${p.proposals.length?" · "+p.proposals.length+" local"+(p.proposals.length>1?"es":""):""}</div></div>
       <div style="font-size:14px">${right}</div>
     </button></div>`;
 }
@@ -604,7 +611,7 @@ function viewDetail(p){
 function specRow(l,v){ return `<div class="specrow"><b>${l}</b><span style="color:${v?"var(--ink)":"var(--faint)"}">${v?esc(v):"—"}</span></div>`; }
 function field(label,fk,val,ph,ta,id){ const attr=`data-focus="${fk}" data-inp="${fk}" ${id?`data-id="${id}"`:""}`;
   return `<label class="f"><span>${label}</span>${ta?`<textarea class="inp" rows="3" ${attr} placeholder="${ph}">${esc(val)}</textarea>`:`<input class="inp" ${attr} value="${esc(val)}" placeholder="${ph}">`}</label>`; }
-function stepper(fk,v,id){ return `<span class="stepper"><button data-act="step" data-fk="${fk}" data-id="${id}" data-d="-1">–</button><span class="val">${Number(v)||0}</span><button data-act="step" data-fk="${fk}" data-id="${id}" data-d="1">+</button></span>`; }
+function stepper(fk,v,id){ return `<span class="stepper"><button data-act="step" data-fk="${fk}" data-id="${id}" data-d="-1">–</button><span class="val">${qtyfmt(v)}</span><button data-act="step" data-fk="${fk}" data-id="${id}" data-d="1">+</button></span>`; }
 function moneyIn(fk,v,id){ return `<span class="moneyin"><span>$</span><input inputmode="decimal" data-focus="${fk}" data-inp="${fk}" data-id="${id}" value="${esc(v)}" placeholder="0"></span>`; }
 function zonePicker(val){ const custom=val&&!ZONES.includes(val);
   return `<div class="chips">${ZONES.map(z=>`<button class="chip ${val===z?"on":""}" data-act="zone" data-z="${esc(z)}">${esc(z)}</button>`).join("")}</div>
@@ -668,7 +675,7 @@ function buildPdf(){
     const specs=[p.specs.size,p.specs.container,p.specs.notes].filter(Boolean).join(" · ");
     return `<tr><td>${i+1}</td>
       <td><b>${esc(p.name)}</b>${p.scientific?`<br><i style="color:#666">${esc(p.scientific)}</i>`:""}${p.zone?`<br><span style="color:#888;font-size:11px">${esc(p.zone)}</span>`:""}</td>
-      <td style="text-align:center;white-space:nowrap">${p.qtyNeeded} ${esc(uom(p.qtyNeeded,p.unit))}</td>
+      <td style="text-align:center;white-space:nowrap">${qtyfmt(p.qtyNeeded)} ${esc(uom(p.qtyNeeded,p.unit))}</td>
       <td>${esc(specs)||"—"}</td>
       <td class="fill"></td><td class="fill"></td></tr>`;
   }).join("");
