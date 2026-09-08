@@ -377,7 +377,7 @@ function viewToggle(){ return `<div class="seg">
 </div>`; }
 
 function viewList(){
-  const {spent,pend,bought}=totals();
+  const {spent,pend,bought,budget}=totals();
   const q=S.query.toLowerCase();
   let items=S.plants.filter(p=>{
     if(S.filter!=="all" && p.status!==S.filter) return false;
