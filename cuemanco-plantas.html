@@ -21,6 +21,7 @@
   body{background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
        padding-bottom:env(safe-area-inset-bottom)}
   .wrap{max-width:480px;margin:0 auto}
+  #app{display:block;padding-bottom:96px}
   .serif{font-family:var(--serif)}
   input,textarea,button{font-family:inherit}
   input:focus,textarea:focus{outline:2px solid var(--forest);outline-offset:1px}
@@ -51,6 +52,9 @@
   .tabs{margin-top:12px;display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
   .pill{white-space:nowrap;border-radius:999px;padding:6px 14px;font-size:14px;background:var(--card);color:var(--sub);border:1px solid var(--line)}
   .pill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-top:14px}
+  .seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:9px;padding:9px;font-size:14px;color:var(--sub);font-weight:500}
+  .seg button.on{background:var(--forest);color:#fff}
 
   .list{padding:0 20px;display:flex;flex-direction:column;gap:12px}
   .pcard{display:flex;border-radius:16px;overflow:hidden;background:var(--card);border:1px solid var(--line);text-align:left;width:100%}
@@ -65,7 +69,7 @@
   .badge{border-radius:999px;padding:2px 8px;font-size:12px;flex:0 0 auto}
   .rowtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 
-  .fab{position:fixed;right:20px;bottom:76px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.18);
+  .fab{position:fixed;right:20px;bottom:20px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.18);
        display:flex;align-items:center;gap:8px;padding:14px 20px;color:#fff;background:var(--forest);font-weight:500;font-size:15px;z-index:20}
   .tabbar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);z-index:20}
   .tabbar .inner{max-width:480px;margin:0 auto;display:flex}
@@ -189,6 +193,7 @@ function icCheckCircle(cls){ return `<svg class="i ${cls||''}" viewBox="0 0 24 2
 
 /* ---------------- data ---------------- */
 const ZONES = ["Jardinera baño","Jardinera terraza","Jardinera bar","Jardinera fachada calle","Jardinera puerta calle"];
+const CATS = ["Plantas","Tierra","Macetas"];
 const STATUS = { pending:{label:"Por comprar",color:"var(--faint)",soft:"#E7E9DE"},
   comparing:{label:"Comparando",color:"var(--ochre)",soft:"var(--ochreSoft)"},
   bought:{label:"Comprado",color:"var(--forest)",soft:"var(--forestSoft)"} };
@@ -200,9 +205,11 @@ const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replac
 const bestPrice = p => p.proposals.length ? Math.min(...p.proposals.map(x=>Number(x.price)||Infinity)) : null;
 const bestProp  = p => p.proposals.reduce((b,pr)=> b===null||(Number(pr.price)||Infinity)<(Number(b.price)||Infinity)?pr:b, null);
 
-const mk = o => Object.assign({ scientific:"", qtyNeeded:1, unit:"pieza", zone:"",
+const mk = o => { const m = Object.assign({ scientific:"", qtyNeeded:1, unit:"pieza", zone:"", category:"Plantas",
   specs:{size:"",container:"",notes:""}, proposals:[], photos:[], status:"pending",
   finalProposalId:null, finalSupplier:"", finalPrice:"", finalQty:"", createdAt:Date.now() }, o);
+  if(!o.category) m.category = ["L","m²"].includes(m.unit) ? "Tierra" : "Plantas";
+  return m; };
 
 const SEED = [
   mk({id:"encino-rojo",name:"Encino rojo",scientific:"Quercus sp.",qtyNeeded:2,unit:"pieza",zone:"Lindero norte",
@@ -295,7 +302,7 @@ const DB = {
 
 /* ---------------- state ---------------- */
 let S = { plants:[], view:"list", tab:"list", returnTo:"list", activeId:null, groupKey:null,
-  filter:"all", query:"", sort:"original", editSpecs:false, specsDraft:null, addProp:false, propDraft:null,
+  filter:"all", query:"", sort:"original", cat:"all", editSpecs:false, specsDraft:null, addProp:false, propDraft:null,
   showAdd:false, addDraft:null, hideGot:false };
 const app = document.getElementById("app");
 const getP = id => S.plants.find(p=>p.id===id);
@@ -325,6 +332,11 @@ async function init(){
     await DB.set("materials-v1", true);
     await save();
   }
+  if(!(await DB.get("cat-v1"))){
+    S.plants.forEach(p=>{ if(!p.category) p.category = ["L","m²"].includes(p.unit) ? "Tierra" : "Plantas"; });
+    await DB.set("cat-v1", true);
+    await save();
+  }
   render();
 }
 
@@ -336,7 +348,7 @@ function render(){
   else if(S.view==="route") html=viewRoute();
   else if(S.view==="group"){ const m=S.plants.filter(p=>p.name.trim().toLowerCase()===S.groupKey); if(m.length){ html=viewGroup(m); } else { S.view="list"; html=viewList(); } }
   else if(S.view==="detail"){ const p=getP(S.activeId); html = p?viewDetail(p):viewList(); }
-  if(S.view!=="detail") html += fab()+tabbar();
+  if(S.view!=="detail") html += fab();
   app.innerHTML = html;
   if(S.showAdd) app.insertAdjacentHTML("beforeend", modalAdd());
   if(fk){ const e=app.querySelector('[data-focus="'+fk+'"]'); if(e){ e.focus(); try{e.setSelectionRange(ss,ss);}catch(_){} } }
@@ -350,21 +362,23 @@ function totals(){
 }
 
 function fab(){ return `<button class="fab" data-act="add">${ic("plus")} Agregar</button>`; }
-function tabbar(){ return `<nav class="tabbar"><div class="inner">
-  <button class="${S.tab==="list"?"on":""}" data-act="tab" data-tab="list">${ic("list")}<span>Lista</span></button>
-  <button class="${S.tab==="route"?"on":""}" data-act="tab" data-tab="route">${ic("route")}<span>Ruta</span></button>
-</div></nav>`; }
+function viewToggle(){ return `<div class="seg">
+  <button class="${S.tab==="list"?"on":""}" data-act="tab" data-tab="list">${ic("list","s")} Lista</button>
+  <button class="${S.tab==="route"?"on":""}" data-act="tab" data-tab="route">${ic("route","s")} Ruta</button>
+</div>`; }
 
 function viewList(){
   const {spent,pend,bought}=totals();
   const q=S.query.toLowerCase();
   let items=S.plants.filter(p=>{
     if(S.filter!=="all" && p.status!==S.filter) return false;
+    if(S.cat!=="all" && (p.category||"Plantas")!==S.cat) return false;
     if(q) return (p.name+" "+p.scientific+" "+p.zone).toLowerCase().includes(q);
     return true;
   });
   if(S.sort==="az") items=[...items].sort((a,b)=>a.name.localeCompare(b.name,"es",{sensitivity:"base"}));
   const tabs=[["all","Todo"],["pending","Por comprar"],["comparing","Comparando"],["bought","Comprado"]];
+  const catCount=c=>S.plants.filter(p=>(p.category||"Plantas")===c).length;
   return `<header class="head">
     <div class="eyebrow">${ic("leaf","s")}<span>Cuemanco · Casa Jacarandas</span></div>
     <h1>Compra de plantas</h1>
@@ -379,7 +393,12 @@ function viewList(){
       <button class="tool" data-act="sort" style="margin-left:auto;${S.sort==="az"?"font-weight:600":"color:var(--sub)"}">${ic("sort","s")} ${S.sort==="az"?"A–Z activo":"Ordenar A–Z"}</button>
     </div>
     <div class="searchbox">${ic("search","s")}<input data-focus="search" data-inp="query" value="${esc(S.query)}" placeholder="Buscar planta o zona…"></div>
+    ${viewToggle()}
     <div class="tabs">${tabs.map(([k,l])=>`<button class="pill ${S.filter===k?"on":""}" data-act="filter" data-f="${k}">${l}</button>`).join("")}</div>
+    <div class="tabs" style="margin-top:8px">
+      <button class="pill ${S.cat==="all"?"on":""}" data-act="catfilter" data-c="all">Todas</button>
+      ${CATS.map(c=>`<button class="pill ${S.cat===c?"on":""}" data-act="catfilter" data-c="${esc(c)}">${esc(c)} <span style="opacity:.6">${catCount(c)}</span></button>`).join("")}
+    </div>
   </header>
   <div class="list">
     ${listBody(items)}
@@ -491,6 +510,7 @@ function viewRoute(){
   return `<header class="head">
     <div class="eyebrow">${ic("route","s")}<span>Recorrido por zona</span></div>
     <h1>Ruta del mercado</h1>
+    ${viewToggle()}
     <div class="prog"><div class="top"><span class="muted">Conseguidas</span><span class="n">${got}/${total}</span></div>
       <div class="bar"><div style="width:${pct}%"></div></div></div>
     <button class="tool" style="margin-top:12px" data-act="hidegot">${S.hideGot?icCheckCircle("s"):ic("circle","s")} Ocultar las que ya conseguí</button>
@@ -532,6 +552,9 @@ function viewDetail(p){
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
       <span class="muted">Cantidad que necesito:</span>${stepper("qtyNeeded",p.qtyNeeded,p.id)}<span class="muted">${esc(uom(p.qtyNeeded,p.unit))}</span>
     </div>
+
+    <div class="section"><div class="sectitle"><div class="l">${ic("clip","s")} Categoría</div></div>
+      <div class="chips">${CATS.map(c=>`<button class="chip ${(p.category||"Plantas")===c?"on":""}" data-act="setcat" data-c="${esc(c)}" data-id="${p.id}">${esc(c)}</button>`).join("")}</div></div>
 
     <div class="section"><div class="sectitle"><div class="l">${ic("pin","s")} Zona de la casa</div></div>
       ${zonePicker(p.zone)}</div>
@@ -618,6 +641,8 @@ function modalAdd(){ const d=S.addDraft||{}; const custom=d.zone&&!ZONES.include
       <div><span style="font-size:12px;color:var(--sub)">Cantidad</span><div style="margin-top:4px">${stepper("addqty",d.qtyNeeded||1,"__add")}</div></div>
       <label class="f" style="flex:1"><span>Unidad</span><input class="inp" data-focus="add-unit" data-inp="add-unit" value="${esc(d.unit||"piezas")}"></label>
     </div>
+    <div class="space"></div><span style="font-size:12px;color:var(--sub)">Categoría</span>
+    <div class="chips" style="margin-top:6px">${CATS.map(c=>`<button class="chip ${(d.category||"Plantas")===c?"on":""}" data-act="addcat" data-c="${esc(c)}">${esc(c)}</button>`).join("")}</div>
     <div class="space"></div><span style="font-size:12px;color:var(--sub)">Zona de la casa</span>
     <div class="chips" style="margin-top:6px">${ZONES.map(z=>`<button class="chip ${d.zone===z?"on":""}" data-act="addzone" data-z="${esc(z)}">${esc(z)}</button>`).join("")}</div>
     <input class="inp" style="margin-top:8px" data-focus="add-zone-custom" data-inp="add-zone-custom" value="${custom?esc(d.zone):""}" placeholder="Otra zona…">
@@ -635,9 +660,10 @@ function compress(file){ return new Promise((res,rej)=>{ const r=new FileReader(
 
 /* ---------------- supplier quote PDF (via print) ---------------- */
 function buildPdf(){
-  const list = S.plants.filter(p=>p.status!=="bought").slice()
+  const list = S.plants.filter(p=>p.status!=="bought" && (S.cat==="all" || (p.category||"Plantas")===S.cat)).slice()
     .sort((a,b)=>a.name.localeCompare(b.name,"es",{sensitivity:"base"}));
-  if(!list.length){ alert("No hay plantas pendientes para cotizar."); return; }
+  if(!list.length){ alert("No hay productos pendientes para cotizar en este filtro."); return; }
+  const titulo = S.cat==="all" ? "Solicitud de cotización — Productos" : "Solicitud de cotización — "+S.cat;
   const rows = list.map((p,i)=>{
     const specs=[p.specs.size,p.specs.container,p.specs.notes].filter(Boolean).join(" · ");
     return `<tr><td>${i+1}</td>
@@ -649,11 +675,11 @@ function buildPdf(){
   const totalItems=list.reduce((s,p)=>s+(Number(p.qtyNeeded)||0),0);
   const fecha=new Date().toLocaleDateString("es-MX",{year:"numeric",month:"long",day:"numeric"});
   document.getElementById("printsheet").innerHTML=`<div class="psheet">
-    <h1>Solicitud de cotización — Plantas</h1>
+    <h1>${esc(titulo)}</h1>
     <div class="pmeta">Casa Jacarandas · ${fecha}</div>
     <table class="pline"><tr><td>Proveedor: ______________________________</td><td style="text-align:right">Contacto/Tel.: __________________</td></tr></table>
-    <p class="pnote">Favor de cotizar el <b>precio unitario</b> de cada planta según las especificaciones indicadas. Total de piezas solicitadas: <b>${totalItems}</b>.</p>
-    <table class="ptable"><thead><tr><th>#</th><th>Planta</th><th>Cant.</th><th>Especificaciones</th><th>Precio unit.</th><th>Importe</th></tr></thead>
+    <p class="pnote">Favor de cotizar el <b>precio unitario</b> de cada producto según las especificaciones indicadas.</p>
+    <table class="ptable"><thead><tr><th>#</th><th>Producto</th><th>Cant.</th><th>Especificaciones</th><th>Precio unit.</th><th>Importe</th></tr></thead>
       <tbody>${rows}</tbody></table>
     <p class="pnote">Notas / vigencia de la cotización: ____________________________________________________________</p>
   </div>`;
@@ -699,12 +725,14 @@ app.addEventListener("click",async e=>{
   switch(act){
     case "tab": S.tab=b.dataset.tab; S.view=b.dataset.tab; render(); break;
     case "filter": S.filter=b.dataset.f; render(); break;
+    case "catfilter": S.cat=b.dataset.c; render(); break;
+    case "setcat": { if(p){ p.category=b.dataset.c; await persist(); } break; }
     case "sort": S.sort = S.sort==="az"?"original":"az"; render(); break;
     case "open": S.returnTo=S.tab; S.activeId=id; S.view="detail"; S.editSpecs=false; S.specsDraft=null; S.addProp=false; S.propDraft=null; render(); break;
     case "opengroup": S.groupKey=b.dataset.key; S.view="group"; render(); break;
     case "backgroup": S.view="list"; S.groupKey=null; render(); break;
     case "openin": S.returnTo="group"; S.activeId=id; S.view="detail"; S.editSpecs=false; S.specsDraft=null; S.addProp=false; S.propDraft=null; render(); break;
-    case "addlike": { const ms=S.plants.filter(p=>p.name.trim().toLowerCase()===S.groupKey); const f=ms[0]||{}; S.showAdd=true; S.addDraft={name:f.name||"",scientific:f.scientific||"",unit:f.unit||"piezas",qtyNeeded:1,zone:""}; render(); break; }
+    case "addlike": { const ms=S.plants.filter(p=>p.name.trim().toLowerCase()===S.groupKey); const f=ms[0]||{}; S.showAdd=true; S.addDraft={name:f.name||"",scientific:f.scientific||"",unit:f.unit||"pieza",qtyNeeded:1,zone:"",category:f.category||"Plantas"}; render(); break; }
     case "back": S.view=S.returnTo; S.activeId=null; render(); break;
     case "hidegot": S.hideGot=!S.hideGot; render(); break;
     case "quick": { const q=getP(id); if(q){ if(q.status==="bought"){ q.status=q.proposals.length?"comparing":"pending"; q.finalProposalId=null;q.finalSupplier="";q.finalPrice="";q.finalQty=""; } else { const bpr=bestProp(q); q.status="bought"; q.finalProposalId=bpr?bpr.id:null; q.finalSupplier=bpr?bpr.supplier:""; q.finalPrice=bpr?bpr.price:""; q.finalQty=q.qtyNeeded; } await persist(); } break; }
@@ -723,11 +751,12 @@ app.addEventListener("click",async e=>{
     case "clearfinal": { if(p){ p.status=p.proposals.length?"comparing":"pending"; p.finalProposalId=null;p.finalSupplier="";p.finalPrice="";p.finalQty=""; await persist(); } break; }
     case "buymanual": { if(p){ p.status="bought"; p.finalQty=p.qtyNeeded; await persist(); } break; }
     case "delplant": if(p && confirm('¿Eliminar "'+p.name+'"?')){ S.plants=S.plants.filter(x=>x.id!==id); S.view=S.returnTo; S.activeId=null; await persist(); } break;
-    case "add": S.showAdd=true; S.addDraft={qtyNeeded:1,unit:"pieza"}; render(); break;
+    case "add": S.showAdd=true; S.addDraft={qtyNeeded:1,unit:"pieza",category:(S.cat!=="all"?S.cat:"Plantas")}; render(); break;
     case "closeadd-bg": if(e.target===b){ S.showAdd=false; S.addDraft=null; render(); } break;
     case "closeadd": S.showAdd=false; S.addDraft=null; render(); break;
+    case "addcat": S.addDraft=S.addDraft||{}; S.addDraft.category=b.dataset.c; render(); break;
     case "addzone": S.addDraft=S.addDraft||{}; S.addDraft.zone=b.dataset.z; render(); break;
-    case "saveadd": { const d=S.addDraft||{}; if(d.name&&d.name.trim()){ S.plants.push(mk({id:uid(),name:d.name.trim(),scientific:d.scientific||"",qtyNeeded:Number(d.qtyNeeded)||1,unit:d.unit||"piezas",zone:d.zone||"",specs:{size:"",container:"",notes:d.notes||""}})); S.showAdd=false; S.addDraft=null; await persist(); } break; }
+    case "saveadd": { const d=S.addDraft||{}; if(d.name&&d.name.trim()){ S.plants.push(mk({id:uid(),name:d.name.trim(),scientific:d.scientific||"",qtyNeeded:Number(d.qtyNeeded)||1,unit:d.unit||"pieza",zone:d.zone||"",category:d.category||"Plantas",specs:{size:"",container:"",notes:d.notes||""}})); S.showAdd=false; S.addDraft=null; await persist(); } break; }
     case "backup": backup(); break;
     case "restore": document.getElementById("restorein").click(); break;
     case "pdf": buildPdf(); break;
